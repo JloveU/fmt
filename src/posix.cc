@@ -89,7 +89,12 @@ void buffered_file::close() {
 #define FMT_ARGS
 
 int buffered_file::fileno() const {
+#if (!defined(_WIN32)) && (!defined(__APPLE__)) && (!defined(__linux__))
+  FMT_THROW(system_error(errno, "'fileno' not implemented"));
+  int fd = -1;
+#else
   int fd = FMT_POSIX_CALL(fileno FMT_ARGS(file_));
+#endif
   if (fd == -1) FMT_THROW(system_error(errno, "cannot get file descriptor"));
   return fd;
 }
@@ -165,15 +170,25 @@ std::size_t file::write(const void* buffer, std::size_t count) {
 file file::dup(int fd) {
   // Don't retry as dup doesn't return EINTR.
   // http://pubs.opengroup.org/onlinepubs/009695399/functions/dup.html
+#if (!defined(_WIN32)) && (!defined(__APPLE__)) && (!defined(__linux__))
+  FMT_THROW(system_error(errno, "'dup' not implemented"));
+  int new_fd = -1;
+#else
   int new_fd = FMT_POSIX_CALL(dup(fd));
+#endif
   if (new_fd == -1)
     FMT_THROW(system_error(errno, "cannot duplicate file descriptor {}", fd));
   return file(new_fd);
 }
 
 void file::dup2(int fd) {
+#if (!defined(_WIN32)) && (!defined(__APPLE__)) && (!defined(__linux__))
+  FMT_THROW(system_error(errno, "'dup2' not implemented"));
+  int result = -1;
+#else
   int result = 0;
   FMT_RETRY(result, FMT_POSIX_CALL(dup2(fd_, fd)));
+#endif
   if (result == -1) {
     FMT_THROW(system_error(errno, "cannot duplicate file descriptor {} to {}",
                            fd_, fd));
@@ -181,8 +196,12 @@ void file::dup2(int fd) {
 }
 
 void file::dup2(int fd, error_code& ec) FMT_NOEXCEPT {
+#if (!defined(_WIN32)) && (!defined(__APPLE__)) && (!defined(__linux__))
+  int result = -1;
+#else
   int result = 0;
   FMT_RETRY(result, FMT_POSIX_CALL(dup2(fd_, fd)));
+#endif
   if (result == -1) ec = error_code(errno);
 }
 
@@ -199,7 +218,12 @@ void file::pipe(file& read_end, file& write_end) {
 #else
   // Don't retry as the pipe function doesn't return EINTR.
   // http://pubs.opengroup.org/onlinepubs/009696799/functions/pipe.html
+#if (!defined(_WIN32)) && (!defined(__APPLE__)) && (!defined(__linux__))
+  FMT_THROW(system_error(errno, "'pipe' not implemented"));
+  int result = -1;
+#else
   int result = FMT_POSIX_CALL(pipe(fds));
+#endif
 #endif
   if (result != 0) FMT_THROW(system_error(errno, "cannot create pipe"));
   // The following assignments don't throw because read_fd and write_fd
@@ -210,7 +234,12 @@ void file::pipe(file& read_end, file& write_end) {
 
 buffered_file file::fdopen(const char* mode) {
   // Don't retry as fdopen doesn't return EINTR.
+#if (!defined(_WIN32)) && (!defined(__APPLE__)) && (!defined(__linux__))
+  FMT_THROW(system_error(errno, "'fdopen' not implemented"));
+  FILE* f = NULL;
+#else
   FILE* f = FMT_POSIX_CALL(fdopen(fd_, mode));
+#endif
   if (!f)
     FMT_THROW(
         system_error(errno, "cannot associate stream with file descriptor"));
@@ -225,7 +254,12 @@ long getpagesize() {
   GetSystemInfo(&si);
   return si.dwPageSize;
 #else
+#if (!defined(_WIN32)) && (!defined(__APPLE__)) && (!defined(__linux__))
+  FMT_THROW(system_error(errno, "'sysconf' not implemented"));
+  long size = -1;
+#else
   long size = FMT_POSIX_CALL(sysconf(_SC_PAGESIZE));
+#endif
   if (size < 0) FMT_THROW(system_error(errno, "cannot get memory page size"));
   return size;
 #endif
